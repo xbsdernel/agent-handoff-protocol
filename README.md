@@ -148,6 +148,29 @@ token counts from streaming usage metadata, validates structured JSON outputs
 (raising `LLMResponseError` for malformed or non-conforming documents) and
 emits one `llm_call` event per request.
 
+### Agent runtime and tools
+
+`harness/agent.py` provides `BaseAgent`, which implements the AHP `Agent`
+protocol on top of any `LLMClient`. On each turn the model returns one action:
+a `tool_call` (executed and appended to the prompt) or a `reply`. Only a
+validated `HANDOFF`, `NEED_INFO` or `DONE` message is returned to the router.
+Invalid output is re-prompted up to two times before raising `AgentReplyError`,
+which the router reports as `AGENT_ERROR`.
+
+`harness/tools/sqlite_mock.py` seeds an in-memory SQLite database with
+customers, charges and inventory, and exposes `query_customer`,
+`query_charges` and `query_inventory` tools:
+
+```python
+from harness import BaseAgent, SQLiteMockDB, sqlite_tools
+
+db = SQLiteMockDB()
+agent = BaseAgent("triage", "You triage billing tickets.", llm, tools=sqlite_tools(db))
+reply = await agent.handle_handoff(incoming_handoff)
+```
+
+Call `db.reset()` between scenarios to restore the deterministic fixtures.
+
 ---
 
 **Status:** In Development
