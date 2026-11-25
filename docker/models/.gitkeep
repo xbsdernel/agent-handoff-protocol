@@ -1,0 +1,2 @@
+# Place llama.cpp GGUF weights here (for example *-q8_0.gguf).
+# Large model files are git-ignored; see README.md.
