@@ -70,6 +70,7 @@ class AHPErrorCode(StrEnum):
     HOP_LIMIT_EXCEEDED = "HOP_LIMIT_EXCEEDED"
     UNKNOWN_AGENT = "UNKNOWN_AGENT"
     SCHEMA_VIOLATION = "SCHEMA_VIOLATION"
+    AGENT_ERROR = "AGENT_ERROR"
 
 
 # ---------------------------------------------------------------------------

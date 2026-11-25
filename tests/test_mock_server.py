@@ -255,14 +255,16 @@ async def test_latency_simulation(client: AsyncOpenAI) -> None:
         stream=True,
         extra_headers={
             "x-mock-mode": "echo",
-            "x-mock-ttft-ms": "40",
+            "x-mock-ttft-ms": "120",
             "x-mock-token-delay-ms": "5",
         },
     )
     await _collect(stream)
     elapsed = time.perf_counter() - started
 
-    assert elapsed >= 0.035
+    # Windows timer granularity can wake a sleep a few milliseconds early, so
+    # leave a wide margin: 120ms of programmed delay must not finish in <80ms.
+    assert elapsed >= 0.08
 
 
 async def test_runtime_config_endpoint() -> None:
