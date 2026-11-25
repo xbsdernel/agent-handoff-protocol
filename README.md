@@ -103,6 +103,8 @@ Rather than building another standalone AI application, the focus is on the infr
 | `configs/` | YAML experiment configurations |
 | `data/` | Frozen workflow task sets |
 | `notebooks/` | Analysis notebooks |
+| `docs/` | AHP specification |
+| `schemas/` | Exported JSON Schemas for constrained decoding |
 
 ## Development
 
@@ -113,6 +115,7 @@ uv sync                       # create .venv and install locked dependencies
 uv run pytest                 # run the test suite
 uv run ruff check .           # lint
 uv run ruff format --check .  # verify formatting
+uv run python -m ahp.schema_export   # regenerate schemas/*.schema.json
 ```
 
 The Day-1 interface contracts live in `ahp/interfaces.py`, `engine/interfaces.py`

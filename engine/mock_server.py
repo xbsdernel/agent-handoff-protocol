@@ -198,11 +198,13 @@ def _sample_object(
 ) -> dict[str, Any]:
     properties = schema.get("properties")
     properties = properties if isinstance(properties, Mapping) else {}
-    required = schema.get("required")
-    required_names = list(required) if isinstance(required, list) else list(properties)
+    # Include optional properties too: it produces complete, realistic mock
+    # responses and keeps discriminator defaults (``type``, ``status``, ...)
+    # in the generated document.
+    property_names = list(properties)
 
     result: dict[str, Any] = {}
-    for name in required_names:
+    for name in property_names:
         prop_schema = properties.get(name)
         if isinstance(prop_schema, Mapping):
             result[str(name)] = _sample(prop_schema, root, depth + 1)
