@@ -90,6 +90,35 @@ This project explores the intersection of **Multi-Agent Systems, LLM Infrastruct
 
 Rather than building another standalone AI application, the focus is on the infrastructure that makes multi-agent systems more reliable, measurable, and efficient.
 
+## Repository Layout
+
+| Path | Purpose |
+|---|---|
+| `ahp/` | AHP message models, validation, state machine and router |
+| `harness/` | Agent runtime, prompts, mock tools and workflows |
+| `engine/` | Unified `LLMClient`, engine adapters and mock server |
+| `telemetry/` | Event schema, sinks, storage and metric samplers |
+| `bench/` | Workload driver and benchmark matrix orchestrator |
+| `tests/` | Unit, integration and fuzz tests |
+| `configs/` | YAML experiment configurations |
+| `data/` | Frozen workflow task sets |
+| `notebooks/` | Analysis notebooks |
+
+## Development
+
+Requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
+
+```bash
+uv sync                       # create .venv and install locked dependencies
+uv run pytest                 # run the test suite
+uv run ruff check .           # lint
+uv run ruff format --check .  # verify formatting
+```
+
+The Day-1 interface contracts live in `ahp/interfaces.py`, `engine/interfaces.py`
+and `telemetry/interfaces.py`; code against them while the concrete
+implementations land.
+
 ---
 
 **Status:** In Development

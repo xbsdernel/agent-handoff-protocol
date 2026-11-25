@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Experiment output (one folder per run)
+runs/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
