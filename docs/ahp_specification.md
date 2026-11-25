@@ -150,6 +150,7 @@ A workflow that exhausts its repair cycles MUST still end with `DONE` and
 stateDiagram-v2
     [*] --> INITIATED
     INITIATED --> IN_TRANSIT: first HANDOFF sent
+    INITIATED --> FAILED: initial message rejected
     IN_TRANSIT --> PROCESSING: handoff accepted / ACK
     PROCESSING --> IN_TRANSIT: HANDOFF forwarded
     PROCESSING --> BLOCKED_NEED_INFO: NEED_INFO sent
@@ -251,6 +252,7 @@ The receiver SHOULD honour the sender's `on_failure` value:
 | `ACK_TIMEOUT` | No ACK arrived within the timeout and retries were exhausted. |
 | `HOP_LIMIT_EXCEEDED` | Forwarding would exceed `max_hops`. |
 | `UNKNOWN_AGENT` | `to_agent` is not registered with the router. |
+| `AGENT_ERROR` | An agent handler raised an exception. |
 | `SCHEMA_VIOLATION` | Model output could not be parsed against the AHP schema. |
 
 These codes are exposed as `ahp.models.AHPErrorCode` so telemetry and tests can
