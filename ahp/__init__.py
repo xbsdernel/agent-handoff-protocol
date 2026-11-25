@@ -4,6 +4,13 @@ This package exposes the protocol vocabulary, the four message types, the
 lifecycle state machine and the in-process router.
 """
 
+from ahp.fault_injection import (
+    CorruptionPolicy,
+    FaultConfig,
+    FaultInjectionRouter,
+    FaultKind,
+    FaultRecord,
+)
 from ahp.interfaces import Agent
 from ahp.models import (
     AckMessage,
@@ -45,8 +52,13 @@ __all__ = [
     "AckTimeoutError",
     "Agent",
     "AgentError",
+    "CorruptionPolicy",
     "DoneMessage",
     "DoneStatus",
+    "FaultConfig",
+    "FaultInjectionRouter",
+    "FaultKind",
+    "FaultRecord",
     "HandoffMessage",
     "HopLimitExceeded",
     "InProcessRouter",

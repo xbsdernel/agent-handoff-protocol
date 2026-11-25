@@ -293,7 +293,24 @@ The reference `InProcessRouter` satisfies these with `asyncio.Queue` inboxes and
 an in-memory ACK cache. A network transport would add serialization but no
 protocol changes.
 
-## 10. Conformance checklist
+## 10. Robustness testing
+
+`ahp/fault_injection.py` provides `FaultInjectionRouter`, a drop-in replacement
+for `InProcessRouter` that injects seeded transport faults at delivery time.
+
+| Fault | Effect | Recovery path |
+|---|---|---|
+| `drop_rate` | Delivery silently discarded. | ACK timeout, bounded retry, then `ESCALATED`. |
+| `delay_range` | Artificial sleep before delivery. | None; models a slow link. |
+| `corruption_rate` | JSON payload mutated into an invalid document (missing field, wrong type, unknown field, bad discriminator or malformed JSON) and rejected by validation. | Retry via ACK timeout, or an explicit `NEED_INFO` when `corruption_policy="need_info"`. |
+| `duplicate_rate` | Identical copy delivered twice. | `message_id` deduplication and cached ACK replay. |
+
+A single `random.Random(seed)` drives every decision, and each injected fault is
+recorded in `FaultInjectionRouter.fault_history`, so a fixed seed reproduces an
+identical fault sequence across runs. Recovery `NEED_INFO` traffic bypasses
+injection, which prevents infinite loops when corruption is set to 100%.
+
+## 11. Conformance checklist
 
 An implementation conforms to AHP 1.0 when it:
 
