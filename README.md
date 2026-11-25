@@ -94,7 +94,7 @@ Rather than building another standalone AI application, the focus is on the infr
 
 | Path | Purpose |
 |---|---|
-| `ahp/` | AHP message models, validation, state machine and router |
+| `ahp/` | AHP message models, validation, state machine, router and fault injection |
 | `harness/` | Agent runtime, prompts, mock tools and workflows |
 | `engine/` | Unified `LLMClient`, engine adapters and mock server |
 | `telemetry/` | Event schema, sinks, storage and metric samplers |

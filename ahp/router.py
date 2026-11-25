@@ -356,9 +356,17 @@ class InProcessRouter:
             await self._fail(conversation_id, error)
             raise error
 
-        await self._enqueue(msg, attempt=attempt)
+        await self._deliver(msg, attempt=attempt)
 
-    async def _enqueue(self, message: AHPMessage, *, attempt: int = 1) -> None:
+    async def _deliver(self, message: AHPMessage, *, attempt: int = 1) -> None:
+        """Transport hook: place a validated message in the recipient's inbox.
+
+        This is the single boundary every queued delivery (initial handoff or
+        agent-to-agent forward) passes through. Subclasses may override it to
+        replace the transport or to inject faults; see
+        :class:`ahp.fault_injection.FaultInjectionRouter`.
+        """
+
         await self._emit("handoff.sent", message=message, attempt=attempt)
         await self._queues[message.to_agent].put(message)
 
@@ -608,7 +616,7 @@ class InProcessRouter:
                 reason="message forwarded",
                 hop_count=next_hop,
             )
-            await self._enqueue(reply)
+            await self._deliver(reply)
             return
 
         # DoneMessage
