@@ -1,0 +1,121 @@
+{
+  "definitions": {
+    "JsonValue": {},
+    "OnFailurePolicy": {
+      "description": "What the sender wants the receiver to do when the task fails.",
+      "enum": [
+        "retry",
+        "escalate_to_human",
+        "stop"
+      ],
+      "title": "OnFailurePolicy",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A request to perform work, carrying everything the receiver needs.",
+  "properties": {
+    "message_id": {
+      "description": "Globally unique message identifier; used for deduplication.",
+      "format": "uuid",
+      "title": "Message Id",
+      "type": "string"
+    },
+    "conversation_id": {
+      "description": "Identifier shared by every message in one workflow run.",
+      "minLength": 1,
+      "title": "Conversation Id",
+      "type": "string"
+    },
+    "timestamp_ns": {
+      "description": "Sender clock in nanoseconds since the Unix epoch.",
+      "minimum": 0,
+      "title": "Timestamp Ns",
+      "type": "integer"
+    },
+    "from_agent": {
+      "description": "Sending agent name.",
+      "minLength": 1,
+      "title": "From Agent",
+      "type": "string"
+    },
+    "to_agent": {
+      "description": "Receiving agent name.",
+      "minLength": 1,
+      "title": "To Agent",
+      "type": "string"
+    },
+    "hop_count": {
+      "default": 0,
+      "description": "Number of handoff hops already taken in this conversation.",
+      "minimum": 0,
+      "title": "Hop Count",
+      "type": "integer"
+    },
+    "type": {
+      "const": "HANDOFF",
+      "default": "HANDOFF",
+      "title": "Type",
+      "type": "string"
+    },
+    "goal": {
+      "description": "What the receiver must achieve.",
+      "minLength": 1,
+      "title": "Goal",
+      "type": "string"
+    },
+    "summary": {
+      "description": "Compact context for the receiver.",
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    },
+    "facts": {
+      "additionalProperties": {
+        "$ref": "#/definitions/JsonValue"
+      },
+      "description": "Machine-readable facts accumulated so far.",
+      "title": "Facts",
+      "type": "object"
+    },
+    "done_so_far": {
+      "description": "Human-readable steps already completed.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Done So Far",
+      "type": "array"
+    },
+    "expected_output": {
+      "additionalProperties": {
+        "$ref": "#/definitions/JsonValue"
+      },
+      "description": "Shape or description of the required answer.",
+      "title": "Expected Output",
+      "type": "object"
+    },
+    "constraints": {
+      "additionalProperties": {
+        "$ref": "#/definitions/JsonValue"
+      },
+      "description": "Deadlines, budgets, policies and other limits.",
+      "title": "Constraints",
+      "type": "object"
+    },
+    "on_failure": {
+      "$ref": "#/definitions/OnFailurePolicy",
+      "default": "escalate_to_human",
+      "description": "Preferred recovery policy if the task cannot be completed."
+    }
+  },
+  "required": [
+    "conversation_id",
+    "from_agent",
+    "to_agent",
+    "goal",
+    "summary"
+  ],
+  "title": "HandoffMessage",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

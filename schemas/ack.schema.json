@@ -1,0 +1,80 @@
+{
+  "definitions": {
+    "AckStatus": {
+      "description": "Whether a receiver accepted a handoff or is too busy to process it.",
+      "enum": [
+        "accepted",
+        "busy"
+      ],
+      "title": "AckStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Confirmation that a handoff was received.",
+  "properties": {
+    "message_id": {
+      "description": "Globally unique message identifier; used for deduplication.",
+      "format": "uuid",
+      "title": "Message Id",
+      "type": "string"
+    },
+    "conversation_id": {
+      "description": "Identifier shared by every message in one workflow run.",
+      "minLength": 1,
+      "title": "Conversation Id",
+      "type": "string"
+    },
+    "timestamp_ns": {
+      "description": "Sender clock in nanoseconds since the Unix epoch.",
+      "minimum": 0,
+      "title": "Timestamp Ns",
+      "type": "integer"
+    },
+    "from_agent": {
+      "description": "Sending agent name.",
+      "minLength": 1,
+      "title": "From Agent",
+      "type": "string"
+    },
+    "to_agent": {
+      "description": "Receiving agent name.",
+      "minLength": 1,
+      "title": "To Agent",
+      "type": "string"
+    },
+    "hop_count": {
+      "default": 0,
+      "description": "Number of handoff hops already taken in this conversation.",
+      "minimum": 0,
+      "title": "Hop Count",
+      "type": "integer"
+    },
+    "type": {
+      "const": "ACK",
+      "default": "ACK",
+      "title": "Type",
+      "type": "string"
+    },
+    "acknowledged_message_id": {
+      "description": "``message_id`` of the handoff being acknowledged.",
+      "format": "uuid",
+      "title": "Acknowledged Message Id",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/definitions/AckStatus",
+      "default": "accepted",
+      "description": "Whether the receiver accepted the task or is busy."
+    }
+  },
+  "required": [
+    "conversation_id",
+    "from_agent",
+    "to_agent",
+    "acknowledged_message_id"
+  ],
+  "title": "AckMessage",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
