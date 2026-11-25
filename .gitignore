@@ -16,6 +16,11 @@ venv/
 # Experiment output (one folder per run)
 runs/
 
+# Docker: local env (may contain HF_TOKEN) and llama.cpp model weights
+docker/.env
+docker/models/*
+!docker/models/.gitkeep
+
 # OS / editor
 .DS_Store
 Thumbs.db

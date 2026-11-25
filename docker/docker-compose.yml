@@ -1,0 +1,171 @@
+# Multi-engine serving stack for the AHP inference benchmark.
+#
+# Every engine serves the same model behind an OpenAI-compatible API on
+# container port 8000. Only the host port differs, so a single client (for
+# example engine/client.py) can target any engine by changing `base_url`:
+#
+#   vLLM         http://localhost:8001/v1   metrics: http://localhost:8001/metrics
+#   SGLang       http://localhost:8002/v1   metrics: http://localhost:8002/metrics
+#   llama-server http://localhost:8003/v1   metrics: http://localhost:8003/metrics
+#
+# Engines are isolated with Compose profiles, so `docker compose --profile vllm
+# up` starts vLLM only. Prefer ./launch_engine.sh, which also waits for
+# readiness and can stop/log a single engine.
+#
+# Required host configuration (see .env.example):
+#   HF_CACHE_DIR  host Hugging Face cache mounted read/write into every engine
+#   MODEL_DIR     host directory containing the llama.cpp Q8_0 GGUF file
+
+name: ahp-engines
+
+x-engine-common: &engine-common
+  restart: "no"
+  networks:
+    - engines
+  # Host NVIDIA driver + NVIDIA Container Toolkit must be installed. One GPU
+  # per engine; add device_ids or raise count for multi-GPU tensor parallelism.
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: 1
+            capabilities: [gpu]
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+
+x-healthcheck: &healthcheck
+  # /health returns 503 while the engine loads the model. curl covers the
+  # llama.cpp image (which has no Python); python3 covers vLLM/SGLang.
+  test:
+    - CMD-SHELL
+    - >-
+      curl -fsS http://127.0.0.1:8000/health ||
+      python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
+  interval: 10s
+  timeout: 5s
+  retries: 60
+  start_period: 120s
+
+services:
+  vllm:
+    <<: *engine-common
+    profiles: ["vllm"]
+    image: vllm/vllm-openai:v0.34.0
+    container_name: ahp-vllm
+    # vLLM uses shared memory for tensor parallel workers.
+    shm_size: "16gb"
+    ports:
+      - "${VLLM_PORT:-8001}:8000"
+    environment:
+      HF_HOME: /root/.cache/huggingface
+      HF_TOKEN: "${HF_TOKEN:-}"
+    volumes:
+      - type: bind
+        source: "${HF_CACHE_DIR:?set HF_CACHE_DIR to the host Hugging Face cache}"
+        target: /root/.cache/huggingface
+    command:
+      - --model
+      - "${MODEL_ID:-Qwen/Qwen2.5-7B-Instruct}"
+      - --served-model-name
+      - "${SERVED_MODEL_NAME:-qwen2.5-7b-instruct}"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      # Prefix caching is what the benchmark measures; vLLM exposes Prometheus
+      # metrics on /metrics by default (no extra flag required).
+      - --enable-prefix-caching
+      - --gpu-memory-utilization
+      - "${VLLM_GPU_MEMORY_UTILIZATION:-0.90}"
+      - --max-model-len
+      - "${MAX_MODEL_LEN:-8192}"
+      - --dtype
+      - auto
+    healthcheck: *healthcheck
+
+  sglang:
+    <<: *engine-common
+    profiles: ["sglang"]
+    image: lmsysorg/sglang:v0.5.23-cu130
+    container_name: ahp-sglang
+    shm_size: "16gb"
+    ports:
+      - "${SGLANG_PORT:-8002}:8000"
+    environment:
+      HF_HOME: /root/.cache/huggingface
+      HF_TOKEN: "${HF_TOKEN:-}"
+    volumes:
+      - type: bind
+        source: "${HF_CACHE_DIR:?set HF_CACHE_DIR to the host Hugging Face cache}"
+        target: /root/.cache/huggingface
+    # The image's NVIDIA entrypoint execs these arguments, matching the
+    # upstream `docker run ... python3 -m sglang.launch_server` invocation.
+    command:
+      - python3
+      - "-m"
+      - sglang.launch_server
+      - --model-path
+      - "${MODEL_ID:-Qwen/Qwen2.5-7B-Instruct}"
+      - --served-model-name
+      - "${SERVED_MODEL_NAME:-qwen2.5-7b-instruct}"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      # RadixAttention prefix caching is enabled by default in SGLang; the
+      # metrics server (which also exports prefix-cache hit rate) is opt-in.
+      - --enable-metrics
+      - --mem-fraction-static
+      - "${SGLANG_MEM_FRACTION_STATIC:-0.85}"
+      - --context-length
+      - "${MAX_MODEL_LEN:-8192}"
+    healthcheck: *healthcheck
+
+  llama-server:
+    <<: *engine-common
+    profiles: ["llama-server"]
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda-b4738
+    container_name: ahp-llama-server
+    shm_size: "2gb"
+    ports:
+      - "${LLAMA_SERVER_PORT:-8003}:8000"
+    environment:
+      HF_HOME: /root/.cache/huggingface
+      HF_TOKEN: "${HF_TOKEN:-}"
+    volumes:
+      # Read-write so llama.cpp can reuse the same HF blobs as the other
+      # engines (for example when the GGUF is downloaded with `hf download`).
+      - type: bind
+        source: "${HF_CACHE_DIR:?set HF_CACHE_DIR to the host Hugging Face cache}"
+        target: /root/.cache/huggingface
+      - type: bind
+        source: "${MODEL_DIR:-./models}"
+        target: /models
+        read_only: true
+    command:
+      - --model
+      - "/models/${MODEL_FILE:-model-q8_0.gguf}"
+      - --alias
+      - "${SERVED_MODEL_NAME:-qwen2.5-7b-instruct}"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --ctx-size
+      - "${LLAMA_CTX_SIZE:-8192}"
+      - --n-gpu-layers
+      - "${LLAMA_N_GPU_LAYERS:-999}"
+      # Four parallel slots exercise SGLang-style continuous batching on
+      # llama.cpp; --metrics enables the Prometheus /metrics endpoint.
+      - -np
+      - "4"
+      - --metrics
+    healthcheck: *healthcheck
+
+networks:
+  engines:
+    name: ahp-engines

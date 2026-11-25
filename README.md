@@ -100,6 +100,7 @@ Rather than building another standalone AI application, the focus is on the infr
 | `telemetry/` | Event schema, sinks, storage and metric samplers |
 | `bench/` | Workload driver and benchmark matrix orchestrator |
 | `tests/` | Unit, integration and fuzz tests |
+| `docker/` | Pinned Compose profiles, launcher and docs for vLLM, SGLang and llama.cpp |
 | `configs/` | YAML experiment configurations |
 | `data/` | Frozen workflow task sets |
 | `notebooks/` | Analysis notebooks |
@@ -121,6 +122,10 @@ uv run python -m ahp.schema_export   # regenerate schemas/*.schema.json
 The Day-1 interface contracts live in `ahp/interfaces.py`, `engine/interfaces.py`
 and `telemetry/interfaces.py`; code against them while the concrete
 implementations land.
+
+GPU inference engines run in Docker. See `docker/README.md` for the pinned
+vLLM, SGLang and llama.cpp images, the `launch_engine.sh` readiness workflow,
+and the VRAM allocation settings.
 
 ---
 
