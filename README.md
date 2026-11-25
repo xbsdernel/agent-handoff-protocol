@@ -127,6 +127,27 @@ GPU inference engines run in Docker. See `docker/README.md` for the pinned
 vLLM, SGLang and llama.cpp images, the `launch_engine.sh` readiness workflow,
 and the VRAM allocation settings.
 
+### Engine client
+
+`engine/client.py` provides `UnifiedLLMClient`, a streaming client for any
+OpenAI-compatible endpoint. Switching engines is a `base_url` change:
+
+```python
+from engine import UnifiedLLMClient
+
+async with UnifiedLLMClient(
+    base_url="http://localhost:8002/v1",
+    model="qwen2.5-7b-instruct",
+) as llm:
+    result = await llm.chat(messages, schema=response_schema, temperature=0.0)
+    print(result.text, result.ttft_ms, result.tokens_per_second)
+```
+
+It measures TTFT and total latency client-side with `perf_counter_ns()`, reads
+token counts from streaming usage metadata, validates structured JSON outputs
+(raising `LLMResponseError` for malformed or non-conforming documents) and
+emits one `llm_call` event per request.
+
 ---
 
 **Status:** In Development

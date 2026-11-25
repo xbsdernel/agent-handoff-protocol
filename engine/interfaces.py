@@ -2,36 +2,15 @@
 
 Every inference engine (vLLM, SGLang, llama-server, or the mock server) is
 reached through the same :class:`LLMClient` contract, so switching engines is
-only a configuration change. The concrete client is implemented in Issue #07.
+only a configuration change. :class:`~engine.models.LLMResult` is re-exported
+here for callers that import the contract and its result type together.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
-
-@dataclass(frozen=True, slots=True)
-class LLMResult:
-    """Normalised result of one streamed chat-completion call.
-
-    ``ttft_ms`` and ``total_latency_ms`` are measured client-side with
-    ``time.perf_counter_ns()`` so that the numbers are comparable across
-    engines. ``structured_data`` is populated when the call requested a JSON
-    schema; ``text`` always holds the raw generated text.
-    """
-
-    text: str
-    structured_data: dict[str, Any] | None = None
-    ttft_ms: float = 0.0
-    total_latency_ms: float = 0.0
-    tokens_per_second: float = 0.0
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    total_tokens: int = 0
-    engine_name: str = "unknown"
-    model_name: str = "unknown"
-    finish_reason: str | None = None
+from engine.models import LLMResult
 
 
 @runtime_checkable
