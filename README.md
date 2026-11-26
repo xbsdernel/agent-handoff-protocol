@@ -207,6 +207,44 @@ no-refund cases and 11 escalations, including six tickets whose input text
 deliberately omits the customer ID to exercise the `NeedInfoMessage` path.
 `assess_refund` is the single source of truth for those labels.
 
+### Research fork/join workflow
+
+`harness/workflows/research_fork_join.py` implements the parallel fork/join
+pattern:
+
+```
+user -> lead_researcher -> [topic_researcher_a || topic_researcher_b] -> reviewer_agent -> DONE
+```
+
+- **Lead** asks the model for a structured two-scope plan and retries invalid
+  output before raising `ResearchPlanError` (`AGENT_ERROR`).
+- **Topic researchers** run in separate router queues and are dispatched with
+  `asyncio.gather`, so both branches are genuinely in flight at the same time.
+- **Reviewer** buffers handoffs keyed by `from_agent`, returns `None` for the
+  first branch, and only calls the model once both reports have arrived. It
+  merges the facts, lists discrepancies and closes the workflow with a
+  validated `DoneMessage`.
+
+Role prompts live in `harness/workflows/prompts/`, schemas in
+`harness/workflows/research_schemas.py`, and every summary is capped at 600
+characters.
+
+```python
+from harness import ResearchForkJoin, load_research_topics
+
+chain = ResearchForkJoin.from_shared_llm(llm)  # one client for all four roles
+task = load_research_topics()[0]
+result = await chain.run_task(task)
+print(result.brief, result.key_facts, result.discrepancies)
+```
+
+`data/research_topics.jsonl` is a frozen set of 30 research queries
+(`RES-001`–`RES-030`). Each row carries two non-overlapping scopes with
+`scope_titles`, `scope_questions` and per-scope `scope_facts`; `key_facts` is
+the union of both scopes and `expected_discrepancies` is non-empty for
+`RES-004`, `RES-008` and `RES-021`. `ResearchRunResult.matches_ground_truth`
+checks that the reviewer's brief covers every key fact.
+
 ---
 
 **Status:** In Development
