@@ -16,12 +16,24 @@ from harness.tools import (
     UnknownToolError,
     sqlite_tools,
 )
+from harness.workflows import (
+    RefundDecision,
+    SupportChain,
+    SupportRunResult,
+    SupportTicket,
+    assess_refund,
+    load_support_tickets,
+)
 
 __all__ = [
     "ACTION_SCHEMA",
     "AgentReplyError",
     "BaseAgent",
+    "RefundDecision",
     "SQLiteMockDB",
+    "SupportChain",
+    "SupportRunResult",
+    "SupportTicket",
     "Tool",
     "ToolArgumentError",
     "ToolCallRecord",
@@ -29,5 +41,7 @@ __all__ = [
     "ToolResult",
     "UnknownToolError",
     "action_schema",
+    "assess_refund",
+    "load_support_tickets",
     "sqlite_tools",
 ]

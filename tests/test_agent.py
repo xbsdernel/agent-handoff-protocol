@@ -217,6 +217,61 @@ async def test_agent_handles_need_info_and_answers_with_updated_handoff() -> Non
     assert "missing_fields" in llm.calls[0]["messages"][1]["content"]
 
 
+async def test_incoming_facts_are_preserved_in_outgoing_handoffs() -> None:
+    agent, _ = make_agent(handoff_reply(facts={"decision": "refund"}))
+    incoming = make_handoff(facts={"task_id": "T-1", "customer_id": "CUST-001"})
+
+    result = await agent.handle_handoff(incoming)
+
+    assert isinstance(result, HandoffMessage)
+    assert result.facts == {
+        "task_id": "T-1",
+        "customer_id": "CUST-001",
+        "decision": "refund",
+    }
+
+
+async def test_fact_preservation_can_be_disabled() -> None:
+    agent, _ = make_agent(
+        handoff_reply(facts={"decision": "refund"}),
+        preserve_facts=False,
+    )
+    incoming = make_handoff(facts={"task_id": "T-1", "customer_id": "CUST-001"})
+
+    result = await agent.handle_handoff(incoming)
+
+    assert isinstance(result, HandoffMessage)
+    assert result.facts == {"decision": "refund"}
+
+
+async def test_reply_schema_is_enforced_with_a_reprompt() -> None:
+    reply_schema = {
+        "type": "object",
+        "properties": {
+            "type": {"const": "HANDOFF"},
+            "to_agent": {"type": "string", "minLength": 1},
+            "goal": {"type": "string", "minLength": 1},
+            "summary": {"type": "string", "minLength": 1, "maxLength": 10},
+            "facts": {"type": "object"},
+        },
+        "required": ["type", "to_agent", "goal", "summary", "facts"],
+    }
+    agent, llm = make_agent(
+        handoff_reply(summary="x" * 20),
+        handoff_reply(summary="short"),
+        reply_schema=reply_schema,
+    )
+
+    result = await agent.handle_handoff(make_handoff())
+
+    assert isinstance(result, HandoffMessage)
+    assert result.summary == "short"
+    assert len(llm.calls) == 2
+    assert "too long" in llm.calls[1]["messages"][-1]["content"]
+    assert agent.response_schema["oneOf"][1]["properties"]["reply"] == reply_schema
+    assert "Reply payload JSON schema" in llm.calls[0]["messages"][0]["content"]
+
+
 async def test_done_reply_defaults_to_the_sender() -> None:
     agent, _ = make_agent(
         reply(

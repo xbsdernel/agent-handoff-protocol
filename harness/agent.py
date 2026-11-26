@@ -85,10 +85,18 @@ ACTION_SCHEMA: Final[dict[str, Any]] = {
 }
 
 
-def action_schema() -> dict[str, Any]:
-    """Return a fresh copy of the generic agent action schema."""
+def action_schema(reply_schema: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Return a fresh action schema, optionally embedding a role reply schema.
 
-    return deepcopy(ACTION_SCHEMA)
+    Supplying ``reply_schema`` makes the engine's structured-output request
+    enforce the role-specific AHP payload shape, not just the outer
+    ``tool_call``/``reply`` envelope.
+    """
+
+    schema = deepcopy(ACTION_SCHEMA)
+    if reply_schema is not None:
+        schema["oneOf"][1]["properties"]["reply"] = deepcopy(dict(reply_schema))
+    return schema
 
 
 class AgentReplyError(RuntimeError):
@@ -159,6 +167,17 @@ class BaseAgent:
         Safety limit on tool calls in one ``handle_handoff`` invocation.
     temperature:
         Sampling temperature forwarded to the client.
+    response_schema:
+        Explicit action schema. Defaults to the generic schema, extended with
+        ``reply_schema`` when one is supplied.
+    reply_schema:
+        Optional JSON Schema for the AHP reply payload. It is embedded in the
+        action schema, shown in the system prompt and validated again before
+        the message is parsed.
+    preserve_facts:
+        When true (default), facts from the incoming handoff are merged into
+        the facts of an outgoing ``HANDOFF``. The model's new facts win on
+        conflicts, so accumulated context is never silently dropped.
 
     ``tool_calls`` holds the records of the most recent call. A single agent
     instance is expected to process one conversation message at a time, which
@@ -176,6 +195,8 @@ class BaseAgent:
         max_tool_iterations: int = 8,
         temperature: float = 0.0,
         response_schema: Mapping[str, Any] | None = None,
+        reply_schema: Mapping[str, Any] | None = None,
+        preserve_facts: bool = True,
     ) -> None:
         if not name:
             raise ValueError("agent name must not be empty")
@@ -195,8 +216,14 @@ class BaseAgent:
         self.max_retries = max_retries
         self.max_tool_iterations = max_tool_iterations
         self.temperature = temperature
+        self.reply_schema: dict[str, Any] | None = (
+            deepcopy(dict(reply_schema)) if reply_schema is not None else None
+        )
+        self.preserve_facts = preserve_facts
         self.response_schema: dict[str, Any] = (
-            deepcopy(dict(response_schema)) if response_schema is not None else action_schema()
+            deepcopy(dict(response_schema))
+            if response_schema is not None
+            else action_schema(self.reply_schema)
         )
         self.tool_calls: list[ToolCallRecord] = []
 
@@ -301,6 +328,10 @@ class BaseAgent:
         else:
             tool_context = "No tools are available; reply immediately."
 
+        reply_context = ""
+        if self.reply_schema is not None:
+            reply_context = "Reply payload JSON schema:\n" + _json(self.reply_schema) + "\n"
+
         return (
             f"{self.system_prompt.strip()}\n\n"
             f"You are {self.name!r}, an agent in an Agent Handoff Protocol (AHP) workflow.\n"
@@ -316,6 +347,7 @@ class BaseAgent:
             "- DONE requires type, final_result and summary; to_agent defaults to the "
             "sender. Use status='escalated_unresolved' when the task cannot be resolved.\n"
             "- Never emit ACK: the router acknowledges handoffs itself.\n\n"
+            f"{reply_context}"
             f"{tool_context}"
         )
 
@@ -374,6 +406,16 @@ class BaseAgent:
         if reply_type not in REPLY_TYPES:
             raise ValueError(f"reply type must be one of {sorted(REPLY_TYPES)}, got {reply_type!r}")
 
+        if reply_type == "HANDOFF" and self.preserve_facts:
+            accumulated = dict(incoming.facts) if isinstance(incoming, HandoffMessage) else {}
+            outgoing = payload.get("facts", {})
+            if outgoing is None:
+                outgoing = {}
+            if not isinstance(outgoing, Mapping):
+                raise ValueError("facts must be a JSON object")
+            accumulated.update(outgoing)
+            payload["facts"] = accumulated
+
         # Identity and routing metadata are owned by the agent and router, never
         # by the model. Dropping message_id/timestamp also guarantees uniqueness.
         payload["conversation_id"] = incoming.conversation_id
@@ -383,6 +425,9 @@ class BaseAgent:
         payload.pop("timestamp_ns", None)
         if reply_type in {"NEED_INFO", "DONE"} and "to_agent" not in payload:
             payload["to_agent"] = incoming.from_agent
+
+        if self.reply_schema is not None:
+            jsonschema.validate(instance=payload, schema=self.reply_schema)
 
         return parse_ahp_message(payload)
 

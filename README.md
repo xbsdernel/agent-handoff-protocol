@@ -171,6 +171,42 @@ reply = await agent.handle_handoff(incoming_handoff)
 
 Call `db.reset()` between scenarios to restore the deterministic fixtures.
 
+### Support triage workflow
+
+`harness/workflows/support_chain.py` implements the canonical linear chain
+`customer -> triage_agent -> billing_agent -> reply_agent -> DONE` on top of the
+in-process router:
+
+- **Triage** classifies the issue, verifies the customer and hands off to
+  billing. If the customer details are missing it can ask the customer or let
+  billing ask triage with a `NeedInfoMessage`.
+- **Billing** calls `query_charges` and the deterministic `assess_refund` tool,
+  then hands the decision to reply.
+- **Reply** drafts the customer-facing answer and closes the workflow with a
+  validated `DoneMessage`.
+
+Role prompts live in `harness/workflows/prompts/`, role output schemas in
+`harness/workflows/schemas.py`, and every summary is capped at 600 characters.
+`BaseAgent` merges incoming facts into each outgoing `HANDOFF`, so downstream
+agents never repeat earlier work.
+
+```python
+from harness import SupportChain, load_support_tickets
+
+chain = SupportChain.from_shared_llm(llm)  # one client for all three roles
+ticket = load_support_tickets()[0]
+
+async with chain:
+    result = await chain.run_ticket(ticket)
+    print(result.decision, result.refund_amount, result.done.status)
+```
+
+`data/support_tickets.jsonl` is a frozen set of 50 synthetic scenarios with
+`expected_decision` and `expected_refund_amount` ground truth: 12 refunds, 27
+no-refund cases and 11 escalations, including six tickets whose input text
+deliberately omits the customer ID to exercise the `NeedInfoMessage` path.
+`assess_refund` is the single source of truth for those labels.
+
 ---
 
 **Status:** In Development
