@@ -282,6 +282,77 @@ print(result.outcome, result.developer_attempts, result.tests_passed)
 repeat an ineffective patch. `BugFixRunResult.matches_ground_truth` checks the
 terminal status, the developer attempt count and the escalation reason.
 
+### Telemetry (Issue #17)
+
+`telemetry/models.py` implements strongly-typed event models shared by every
+harness layer: `ProtocolEvent` (router/fault-injection lifecycle), `HandoffEvent`,
+`WorkflowEvent` (started/completed/failed), `LLMCallEvent`, and `SystemEvent`.
+`parse_event` routes a persisted JSON object into the narrowest matching model
+based on `event_type`; unknown types fall back to `ProtocolEvent`, which still
+rejects unexpected fields. `load_events` re-validates every row in a JSONL file.
+
+`telemetry/sink.py` implements `AsyncJSONLEventSink`, a buffered asyncio-native
+JSONL sink. `emit` never performs disk I/O — it appends the event to an
+`asyncio.Queue` and returns immediately. A background writer task drains the queue
+in batches, handing each batch to a worker thread via `_write_batch` so that
+writes cannot stall the event loop even under thousands of events per second.
+The queue is unbounded by default (no-drop guarantee); pass `max_queue_size` to
+opt into cooperative backpressure. `flush` waits until every accepted event has
+been written and flushed to disk. `aclose` stops the writer and closes the file.
+
+`telemetry/run_context.py` provides `RunContext` for standardized run-directory
+layout:
+
+```
+runs/<run_id>/
+  config.yaml      — experiment configuration
+  environment.json — git commit/branch/dirty, Python/platform/CPU/hostname,
+                   GPU model/driver (via `nvidia-smi`), Docker image
+  events.jsonl     — append-only event log
+  engine_metrics.jsonl
+  gpu_metrics.jsonl
+```
+
+`RunContext.create` writes all five files, and `event_sink` returns a sink
+wired to this run's `events.jsonl`. `collect_environment` captures reproducibility
+metadata, including `AHP_GPU_MODEL`/`AHP_GPU_DRIVER` overrides and
+`AHP_DOCKER_IMAGE`.
+
+### Event schema selection (`parse_event`)
+
+- `llm_call` → `LLMCallEvent`
+- `started`/`completed`/`failed` → `WorkflowEvent`
+- `handoff.*` / `handoff` → `HandoffEvent`
+- `system.*` / `agent.error` → `SystemEvent`
+- otherwise → `ProtocolEvent` (permissive, still forbids unknown fields)
+
+### Usage example
+
+```python
+from telemetry.models import parse_event, LLMCallEvent, WorkflowEvent
+from telemetry.sink import AsyncJSONLEventSink
+from telemetry.run_context import RunContext
+
+# Parse a persisted event
+event = parse_event({"event_type": "llm_call", "run_id": "run-1"})
+assert isinstance(event, LLMCallEvent)
+
+# Create a run with telemetry
+ctx = RunContext.create(run_id="my-run-001")
+sink = ctx.event_sink()
+await sink.emit(LLMCallEvent(event_type="llm_call", run_id="my-run-001"))
+await sink.flush()
+await sink.aclose()
+
+# Load events back
+events = ctx.load_events()
+```
+
+`data/bug_reports.jsonl` is a frozen set of 25 scenarios (`BUG-001`–`BUG-025`):
+15 resolve within one to three attempts, 8 exhaust the three-cycle limit, and 2
+repeat an ineffective patch. `BugFixRunResult.matches_ground_truth` checks the
+terminal status, the developer attempt count and the escalation reason.
+
 ---
 
 **Status:** In Development

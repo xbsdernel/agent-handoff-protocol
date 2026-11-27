@@ -26,3 +26,5 @@ docker/models/*
 Thumbs.db
 .idea/
 .vscode/
+
+tests/fixtures/
