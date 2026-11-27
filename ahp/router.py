@@ -39,7 +39,8 @@ from ahp.state_machine import (
     WorkflowState,
     WorkflowStateMachine,
 )
-from telemetry.interfaces import Event, EventSink
+from telemetry.interfaces import EventSink
+from telemetry.models import ProtocolEvent as RouterEvent
 
 #: An agent handler receives one message and optionally returns the next one.
 AgentHandler = Callable[[AHPMessage], Awaitable[AHPMessage | None]]
@@ -104,25 +105,6 @@ class RouterConfig:
             raise ValueError("max_retries must be >= 0")
         if self.retry_backoff_s < 0:
             raise ValueError("retry_backoff_s must be >= 0")
-
-
-class RouterEvent(Event):
-    """Telemetry event emitted by the router.
-
-    Issue #12 will replace this temporary, router-local event shape with the
-    shared strongly-typed event models.
-    """
-
-    message_id: str | None = None
-    acknowledged_message_id: str | None = None
-    message_type: str | None = None
-    from_agent: str | None = None
-    to_agent: str | None = None
-    hop_count: int | None = None
-    attempt: int | None = None
-    error_code: str | None = None
-    state: str | None = None
-    detail: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -291,6 +273,7 @@ class InProcessRouter:
         error_code: AHPErrorCode | None = None,
         state: str | None = None,
         detail: str | None = None,
+        valid_schema: bool = True,
     ) -> None:
         if self._event_sink is None:
             return
@@ -311,6 +294,7 @@ class InProcessRouter:
             error_code=str(error_code) if error_code else None,
             state=state,
             detail=detail,
+            valid_schema=valid_schema,
         )
         try:
             await self._event_sink.emit(event)

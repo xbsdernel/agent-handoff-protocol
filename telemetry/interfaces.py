@@ -1,7 +1,7 @@
 """Telemetry contracts shared by every layer of the harness.
 
-Concrete event subclasses (``WorkflowEvent``, ``HandoffEvent``, ...) and the
-buffered JSONL sink are implemented in Issue #12.
+Concrete event subclasses (``WorkflowEvent``, ``HandoffEvent``, ...) live in
+``telemetry.models``, and the buffered JSONL sink lives in ``telemetry.sink``.
 """
 
 from __future__ import annotations
