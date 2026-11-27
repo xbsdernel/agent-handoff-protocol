@@ -33,7 +33,8 @@ import jsonschema
 from openai import AsyncOpenAI
 
 from engine.models import EngineName, LLMResult
-from telemetry.interfaces import Event, EventSink
+from telemetry.interfaces import EventSink
+from telemetry.models import LLMCallEvent
 
 DEFAULT_BASE_URL: Final[str] = "http://127.0.0.1:8000/v1"
 DEFAULT_MODEL: Final[str] = "mock-model"
@@ -52,26 +53,6 @@ SchemaMode = Literal["json_schema", "json_object"]
 
 class LLMResponseError(RuntimeError):
     """The model returned output that is not valid for the requested schema."""
-
-
-class LLMCallEvent(Event):
-    """Telemetry event emitted once per completion.
-
-    Issue #17 will replace this local event with the shared strongly-typed
-    telemetry models; the field names already match that contract.
-    """
-
-    engine_name: str = str(EngineName.UNKNOWN)
-    model_name: str = "unknown"
-    ttft_ms: float = 0.0
-    latency_ms: float = 0.0
-    tokens_per_second: float = 0.0
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    total_tokens: int = 0
-    finish_reason: str | None = None
-    success: bool = True
-    error: str | None = None
 
 
 def infer_engine_name(base_url: str) -> str:

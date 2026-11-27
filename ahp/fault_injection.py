@@ -287,6 +287,7 @@ class FaultInjectionRouter(InProcessRouter):
                 attempt=attempt,
                 error_code=AHPErrorCode.SCHEMA_VIOLATION,
                 detail=f"{strategy}: {first_error}",
+                valid_schema=False,
             )
             await self._request_resend(original, attempt=attempt)
             return
