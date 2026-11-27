@@ -245,6 +245,43 @@ the union of both scopes and `expected_discrepancies` is non-empty for
 `RES-004`, `RES-008` and `RES-021`. `ResearchRunResult.matches_ground_truth`
 checks that the reviewer's brief covers every key fact.
 
+### Bug triage, fix and test loop
+
+`harness/workflows/bug_fix_loop.py` implements the iterative repair cycle:
+
+```
+user -> bug_triage_agent -> developer_agent <-> tester_agent -> DONE
+```
+
+- **Triage** turns the stack trace, mock source file and failing test names
+  into a reproduction specification.
+- **Developer** reads the current file through the `read_file` tool and proposes
+  a minimal list of `find`/`replace` edits.
+- **Tester** applies the patch atomically in a deterministic `BugSandbox`, runs
+  the synthetic unit tests, and either bounces the handoff back with real
+  failure logs or closes the workflow with `DONE`.
+
+Loop safety is enforced by the orchestrator, not only by prompts:
+
+- at most `max_repair_cycles` (default 3) developer → tester rounds;
+- a repeated patch fingerprint escalates immediately before re-running tests;
+- both cases end with `DONE(status="escalated_unresolved")` and an explicit
+  `reason` in `final_result`.
+
+```python
+from harness import BugFixLoop, load_bug_reports
+
+loop = BugFixLoop.from_shared_llm(llm)  # one client for all three roles
+report = load_bug_reports()[0]
+result = await loop.run_report(report)
+print(result.outcome, result.developer_attempts, result.tests_passed)
+```
+
+`data/bug_reports.jsonl` is a frozen set of 25 scenarios (`BUG-001`–`BUG-025`):
+15 resolve within one to three attempts, 8 exhaust the three-cycle limit, and 2
+repeat an ineffective patch. `BugFixRunResult.matches_ground_truth` checks the
+terminal status, the developer attempt count and the escalation reason.
+
 ---
 
 **Status:** In Development

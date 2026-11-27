@@ -1,5 +1,38 @@
 """Canonical multi-agent workflows built on the AHP router."""
 
+from harness.workflows.bug_fix_loop import (
+    BUG_TRIAGE_PROMPT,
+    DEVELOPER_PROMPT,
+    TESTER_PROMPT,
+    BugFixLoop,
+    BugFixRunResult,
+    BugReport,
+    BugSandbox,
+    BugTest,
+    BugTriageAgent,
+    DeveloperAgent,
+    PatchApplyError,
+    PatchEdit,
+    TesterAgent,
+    TestOutcome,
+    VerificationResult,
+    load_bug_reports,
+    read_file_tool,
+)
+from harness.workflows.bug_fix_loop import (
+    DEFAULT_DATASET_PATH as DEFAULT_BUG_DATASET_PATH,
+)
+from harness.workflows.bug_fix_schemas import (
+    MAX_REPAIR_CYCLES,
+    developer_reply_schema,
+    tester_reply_schema,
+)
+from harness.workflows.bug_fix_schemas import (
+    SUMMARY_MAX_CHARS as BUG_SUMMARY_MAX_CHARS,
+)
+from harness.workflows.bug_fix_schemas import (
+    triage_reply_schema as bug_triage_reply_schema,
+)
 from harness.workflows.research_fork_join import (
     DEFAULT_DATASET_PATH as DEFAULT_RESEARCH_DATASET_PATH,
 )
@@ -56,21 +89,36 @@ from harness.workflows.support_chain import (
 
 __all__ = [
     "BILLING_PROMPT",
+    "BUG_SUMMARY_MAX_CHARS",
+    "BUG_TRIAGE_PROMPT",
     "DECISIONS",
+    "DEFAULT_BUG_DATASET_PATH",
     "DEFAULT_DATASET_PATH",
     "DEFAULT_RESEARCH_DATASET_PATH",
+    "DEVELOPER_PROMPT",
     "ISSUE_TYPES",
     "LEAD_RESEARCH_PROMPT",
+    "MAX_REPAIR_CYCLES",
     "REPLY_PROMPT",
     "RESEARCH_SUMMARY_MAX_CHARS",
     "REVIEWER_RESEARCH_PROMPT",
     "SUMMARY_MAX_CHARS",
+    "TESTER_PROMPT",
     "TOPIC_AGENT_NAMES",
     "TOPIC_RESEARCH_PROMPT",
     "TRIAGE_PROMPT",
     "BillingAgent",
+    "BugFixLoop",
+    "BugFixRunResult",
+    "BugReport",
+    "BugSandbox",
+    "BugTest",
+    "BugTriageAgent",
     "Decision",
+    "DeveloperAgent",
     "LeadResearchAgent",
+    "PatchApplyError",
+    "PatchEdit",
     "RefundDecision",
     "ReplyAgent",
     "ResearchForkJoin",
@@ -83,17 +131,25 @@ __all__ = [
     "SupportChain",
     "SupportRunResult",
     "SupportTicket",
+    "TestOutcome",
+    "TesterAgent",
     "TopicResearchAgent",
     "TriageAgent",
+    "VerificationResult",
     "assess_refund",
     "assess_refund_tool",
     "billing_reply_schema",
     "billing_tools",
+    "bug_triage_reply_schema",
+    "developer_reply_schema",
     "lead_plan_schema",
+    "load_bug_reports",
     "load_research_topics",
     "load_support_tickets",
+    "read_file_tool",
     "reply_reply_schema",
     "reviewer_reply_schema",
+    "tester_reply_schema",
     "topic_reply_schema",
     "triage_reply_schema",
 ]

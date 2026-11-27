@@ -17,6 +17,9 @@ from harness.tools import (
     sqlite_tools,
 )
 from harness.workflows import (
+    BugFixLoop,
+    BugFixRunResult,
+    BugReport,
     RefundDecision,
     ResearchForkJoin,
     ResearchPlan,
@@ -27,6 +30,7 @@ from harness.workflows import (
     SupportRunResult,
     SupportTicket,
     assess_refund,
+    load_bug_reports,
     load_research_topics,
     load_support_tickets,
 )
@@ -35,6 +39,9 @@ __all__ = [
     "ACTION_SCHEMA",
     "AgentReplyError",
     "BaseAgent",
+    "BugFixLoop",
+    "BugFixRunResult",
+    "BugReport",
     "RefundDecision",
     "ResearchForkJoin",
     "ResearchPlan",
@@ -53,6 +60,7 @@ __all__ = [
     "UnknownToolError",
     "action_schema",
     "assess_refund",
+    "load_bug_reports",
     "load_research_topics",
     "load_support_tickets",
     "sqlite_tools",
