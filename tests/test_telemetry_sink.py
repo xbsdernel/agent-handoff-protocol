@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -178,10 +177,42 @@ async def test_emit_on_closed_sink_raises() -> None:
         await sink.emit(ev)
 
 
-@pytest.mark.skip(reason="Flaky timing; see inline issue")
 async def test_writer_error_stored_in_sink() -> None:
-    """When the background writer fails, the error is stored in sink.error."""
-    pass  # placeholder
+    """When the background writer fails, the error is stored in sink.error.
+
+    Causes _write_batch to raise an exception via a subclass, then verifies
+    that sink.error is set and that emit/flush propagate it.
+    """
+    path = _sink_path("error_store")
+
+    class FailingSink(AsyncJSONLEventSink):
+        async def _write_batch(self, lines: list[str]) -> None:
+            raise RuntimeError("simulated write failure")
+
+    sink = FailingSink(path, run_id="test-run")
+    await sink.start()
+
+    # Emit an event; the writer should fail and store the error
+    ev = LLMCallEvent(event_type="llm_call", run_id="test-run")
+    await sink.emit(ev)
+
+    # Give the background writer a moment to process the event and raise.
+    await asyncio.sleep(0.05)
+
+    # The error must be stored
+    assert sink.error is not None, f"Expected sink.error to be set, got {sink.error}"
+    assert isinstance(sink.error, RuntimeError)
+    assert "simulated write failure" in str(sink.error)
+
+    # Emitting after the error must raise
+    with pytest.raises(RuntimeError, match="telemetry writer failed"):
+        await sink.emit(ev)
+
+    # Flushing must also raise
+    with pytest.raises(RuntimeError, match="telemetry writer failed"):
+        await sink.flush()
+
+    await sink.aclose()
 
 
 # ---------------------------------------------------------------------------
